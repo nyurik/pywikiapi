@@ -1,4 +1,4 @@
-from pywikiapi import AttrDict
+from . import AttrDict
 from . import Site
 
 

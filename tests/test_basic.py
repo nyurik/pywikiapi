@@ -1,7 +1,7 @@
 import logging
 import unittest
 
-from pywikiapi import wikipedia, AttrDict
+from pywikiapi import wikipedia
 import requests
 
 
