@@ -11,6 +11,7 @@ from .utils import ApiError, ApiPagesModifiedError
 PY3 = sys.version_info[0] == 3
 if PY3:
     string_types = str,
+    unicode = str
 else:
     # noinspection PyUnresolvedReferences
     string_types = basestring,
@@ -57,7 +58,7 @@ class Site(object):
         self.no_ssl = False  # For non-ssl sites, might be needed to avoid HTTPS
 
         # This var will contain (username,password) after the .login() in case of the login-on-demand mode
-        self._loginOnDemand = False  # type: Union[Tuple[str, str], bool]
+        self._loginOnDemand = False  # type: Union[Tuple[unicode, unicode], bool]
 
         self.headers = CaseInsensitiveDict()
         if headers:
@@ -80,7 +81,7 @@ class Site(object):
             In case of an error, ApiError exception will be raised
             Any warnings will be logged via the logging interface
 
-            :param str action : any of the MW API actions, e.g. 'query' and 'login'
+            :param unicode action : any of the MW API actions, e.g. 'query' and 'login'
 
             Several special "magic" parameters could be used to customize api call.
             Special parameters must be all CAPS to avoid collisions with the server API:
@@ -102,8 +103,8 @@ class Site(object):
         for k, val in kwargs.items():
             # Only support the well known types.
             # Everything else should be client's responsibility
-            if isinstance(val, list) or isinstance(val, tuple):
-                kwargs[k] = '|'.join(val)
+            if isinstance(val, list) or isinstance(val, tuple) or isinstance(val, set):
+                kwargs[k] = u'|'.join([unicode(v) for v in val])
 
         # Make server call
         kwargs['action'] = action
