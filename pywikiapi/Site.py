@@ -182,40 +182,46 @@ class Site(object):
         Query the server and yield all page objects one by one.
         This method makes sure that results received in multiple responses are
         correctly merged together.
+        If any of the pages change during iteration, ApiPagesModifiedError(list) will be thrown
+        after all other pages have been processed and yielded.
         """
-        incomplete = {}
-        changed = set()
+        incomplete = {}  # A dict with incomplete page objects
+        modified = set()  # A set of page ids that we will ignore because they have been modified during iteration
         for result in self.query(**kwargs):
             if 'pages' not in result:
                 raise ApiError('Missing pages element in query result', result)
 
-            finished = incomplete.copy()
+            new_incomplete = {}
             for page in result['pages']:
                 page_id = page['pageid']
-                if page_id in changed:
+                if page_id in modified:
                     continue
                 if page_id in incomplete:
-                    del finished[page_id]  # If server returned it => not finished
                     p = incomplete[page_id]
+                    del incomplete[page_id]
                     if 'lastrevid' in page and p['lastrevid'] != page['lastrevid']:
-                        # someone else modified this page, it must be requested anew separately
-                        changed.add(page_id)
-                        del incomplete[page_id]
+                        # someone else modified this page, it must be requested separately in a new query
+                        modified.add(page_id)
                         continue
+                    # Merge additional page data into the same dict
                     self._merge_page(p, page)
                 else:
                     p = page
-                incomplete[page_id] = p
-            for page_id, page in finished.items():
-                if page_id not in changed:
-                    yield page
+                new_incomplete[page_id] = p
 
+            # Yield all pages that have not been mentioned in the last response
+            for page_id, page in incomplete.items():
+                yield page
+
+            incomplete = new_incomplete
+
+        # Iteration is done, all incomplete are thus complete
         for page_id, page in incomplete.items():
             yield page
 
-        if changed:
-            # some pages have been changed between api calls, notify caller
-            raise ApiPagesModifiedError(list(changed))
+        if modified:
+            # some pages have been modified between api calls, notify caller
+            raise ApiPagesModifiedError(list(modified))
 
     def _merge_page(self, a, b):
         """
