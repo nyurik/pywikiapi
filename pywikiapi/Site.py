@@ -187,12 +187,18 @@ class Site(object):
         """
         incomplete = {}  # A dict with incomplete page objects
         modified = set()  # A set of page ids that we will ignore because they have been modified during iteration
+        missing = set()
         for result in self.query(**kwargs):
             if 'pages' not in result:
                 raise ApiError('Missing pages element in query result', result)
 
             new_incomplete = {}
             for page in result['pages']:
+                if 'missing' in page:
+                    if page['title'] not in missing:
+                        yield page
+                        missing.add(page['title'])
+                    continue
                 page_id = page['pageid']
                 if page_id in modified:
                     continue
