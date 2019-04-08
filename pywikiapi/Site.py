@@ -125,7 +125,11 @@ class Site(object):
             if value is None:
                 return None
             if isinstance(value, datetime):
-                return value.isoformat()
+                # .isoformat() wouldn't work because it sometimes produces +00:00 that MW does not support
+                # Also perform sanity check here to make sure this is a UTC time
+                if value.tzinfo is not None and value.tzinfo.utcoffset(value):
+                    raise ValueError('datetime value has a non-UTC timezone')
+                return value.strftime('%Y-%m-%dT%H:%M:%SZ')
             if isinstance(value, bool):
                 return '1' if value else None
             return unicode(value)
