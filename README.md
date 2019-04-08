@@ -22,7 +22,7 @@ for page in site.query_pages(titles=['Test', 'API'], prop=['links', 'info'], pll
     print(', '.join([l.title for l in page.links]))
     print()
 
-site.login(username, password)
+site.login('username', 'password')
 site('edit', text=...)
 ```
 
@@ -37,5 +37,14 @@ The library supports Python 2.7+ and Python 3.4+
 ## How to use
 
 * Create a `Site` object, either directly or with the `wikipedia` helper function.
-* Use `site.query_pages(...)` to   
 * Use `site.query(...)` or `site.iterate(action, ...)` for all iteration-related API calls. The API will handle all the continuation logic internally.
+* Use `site.query_pages(...)` to get one page object at a time from the action=query.
+* Use `site('query', meta='siteinfo')` te access any API action, passing any additional params as keys.
+
+### Data formats
+The library will properly handle all of the basic parameter types:
+* Numbers and strings will be passed as is
+* Boolean `True` will be passed as `"1"`.
+* `None` and boolean `False` will **not** be included.
+* Datetimes will be formatted with `isoformat()`. **Warning:** make sure datetime is in UTC timezone.
+* Lists will be converted into a pipe `|` -separated string of values.

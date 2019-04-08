@@ -5,6 +5,7 @@ import os
 import sys
 import requests
 from requests.structures import CaseInsensitiveDict
+from datetime import datetime
 
 from .utils import ApiError, ApiPagesModifiedError
 
@@ -90,35 +91,12 @@ class Site(object):
             :param SSL: Same as HTTPS
             :param EXTRAS: Any extra parameters as passed to requests' session.request(). Value is a dict()
         """
-        # Magic CAPS parameters
-        method = 'POST' if 'POST' in kwargs or action in ['login', 'edit'] else 'GET'
-        force_ssl = not self.no_ssl and (action == 'login' or 'SSL' in kwargs or 'HTTPS' in kwargs)
-        request_kw = dict() if 'EXTRAS' not in kwargs else kwargs['EXTRAS']
-
-        # Clean up magic CAPS params as they shouldn't be passed to the server
-        for k in ['POST', 'SSL', 'HTTPS', 'EXTRAS']:
-            if k in kwargs:
-                del kwargs[k]
-
-        for k, val in kwargs.items():
-            # Only support the well known types.
-            # Everything else should be client's responsibility
-            if isinstance(val, list) or isinstance(val, tuple) or isinstance(val, set):
-                kwargs[k] = u'|'.join([unicode(v) for v in val])
-
-        # Make server call
-        kwargs['action'] = action
-        kwargs['format'] = 'json'
-
-        if method == 'POST':
-            request_kw['data'] = kwargs
-        else:
-            request_kw['params'] = kwargs
+        method, request_kw = self._prepare_call(action, kwargs)
 
         if self._loginOnDemand and action != 'login':
             self.login(self._loginOnDemand[0], self._loginOnDemand[1])
 
-        data = self.parse_json(self.request(method, force_ssl=force_ssl, **request_kw))
+        data = self.parse_json(self.request(method, **request_kw))
 
         # Handle success and failure
         if 'error' in data:
@@ -126,6 +104,52 @@ class Site(object):
         if 'warnings' in data:
             self.logger.warning('server-warnings', {'warnings': data['warnings']})
         return data
+
+    def _prepare_call(self, action, kwargs):
+        """
+        Prepares parameters before calling MW API
+        :param unicode action: which MW API action to do
+        :param dict kwargs: key-value parameters as passed to the self.__call__()
+        :return:
+        """
+        # Magic CAPS parameters
+        method = 'POST' if 'POST' in kwargs or action in ['login', 'edit'] else 'GET'
+        request_kw = dict() if 'EXTRAS' not in kwargs else kwargs['EXTRAS']
+        request_kw['force_ssl'] = not self.no_ssl and (action == 'login' or 'SSL' in kwargs or 'HTTPS' in kwargs)
+        # Clean up magic CAPS params as they shouldn't be passed to the server
+        for k in ['POST', 'SSL', 'HTTPS', 'EXTRAS']:
+            if k in kwargs:
+                del kwargs[k]
+
+        def update_value(value):
+            if value is None:
+                return None
+            if isinstance(value, datetime):
+                return value.isoformat()
+            if isinstance(value, bool):
+                return '1' if value else None
+            return unicode(value)
+
+        for k, val in list(kwargs.items()):
+            # Only support the well known types.
+            # Everything else should be client's responsibility
+            if isinstance(val, list) or isinstance(val, tuple) or isinstance(val, set):
+                val = [update_value(v) for v in val]
+                kwargs[k] = u'|'.join(filter(lambda v: v is not None, val))
+            else:
+                val = update_value(val)
+                if val is not None:
+                    kwargs[k] = val
+                else:
+                    del kwargs[k]
+        # Make server call
+        kwargs['action'] = action
+        kwargs['format'] = 'json'
+        if method == 'POST':
+            request_kw['data'] = kwargs
+        else:
+            request_kw['params'] = kwargs
+        return method, request_kw
 
     def login(self, user, password, on_demand=False):
         """
@@ -155,7 +179,7 @@ class Site(object):
         """
         Call any "continuation" style MW API with given parameters, such as the 'query' API.
         Yields all results returned by the server, properly handling result continuation.
-        :param action str: MW API action, e.g. 'query'
+        :param str action: MW API action, e.g. 'query'
         :param kwargs: any API parameters
         :return: yields each response from the server
         """
