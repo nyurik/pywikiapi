@@ -60,6 +60,7 @@ class Site(object):
 
         # This var will contain (username,password) after the .login() in case of the login-on-demand mode
         self._loginOnDemand = False  # type: Union[Tuple[unicode, unicode], bool]
+        self.logged_in = False
 
         self.headers = CaseInsensitiveDict()
         if headers:
@@ -171,6 +172,7 @@ class Site(object):
         if res['result'] != 'Success':
             raise ApiError('Login failed', res)
         self._loginOnDemand = False
+        self.logged_in = True
 
     def query(self, **kwargs):
         """

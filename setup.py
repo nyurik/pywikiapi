@@ -8,7 +8,7 @@ with open(os.path.join(os.path.dirname(__file__), "README.md")) as fid:
 
 setup(
     name="pywikiapi",
-    version="1.2.0",
+    version="1.3.0",
     description="Tiny MediaWiki API client library from the author of the MW API",
     long_description=README,
     long_description_content_type="text/markdown",
