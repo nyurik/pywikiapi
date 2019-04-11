@@ -183,6 +183,7 @@ class Site(object):
         """
         Call any "continuation" style MW API with given parameters, such as the 'query' API.
         Yields all results returned by the server, properly handling result continuation.
+        Use generator.send({...}) to dynamically adjust next request's parameters with the new parameters.
         :param str action: MW API action, e.g. 'query'
         :param kwargs: any API parameters
         :return: yields each response from the server
@@ -198,12 +199,16 @@ class Site(object):
         while True:
             result = self(action, **req)
             if action in result:
-                yield result[action]
+                adjustments = yield result[action]
+            else:
+                adjustments = None
             if 'continue' not in result:
                 break
             # re-send all continue values in the next call
             req = kwargs.copy()
             req.update(result['continue'])
+            if adjustments:
+                req.update(adjustments)
 
     def query_pages(self, **kwargs):
         """
