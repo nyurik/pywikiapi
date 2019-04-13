@@ -324,3 +324,9 @@ class Site(object):
         else:
             # Our servers still have requests 0.8.2 ... :(
             return json.loads(value.content, object_hook=self.json_object_hook)
+
+    def __str__(self):
+        res = self.url
+        if self.logged_in:
+            res += ' (logged in)'
+        return res
