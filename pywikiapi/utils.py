@@ -1,4 +1,5 @@
 import json
+from datetime import datetime
 
 
 class ApiError(Exception):
@@ -32,3 +33,26 @@ class AttrDict(dict):
     def __init__(self, *args, **kwargs):
         super(AttrDict, self).__init__(*args, **kwargs)
         self.__dict__ = self
+
+
+def to_timestamp(value):
+    """
+    Convert datetime to a timestamp string MediaWiki would understand.
+    :type value: datetime
+    :rtype str
+    """
+    # datetime.isoformat() wouldn't work because it sometimes produces +00:00 that MW does not support
+    # Also perform sanity check here to make sure this is a UTC time
+    if value.tzinfo is not None and value.tzinfo.utcoffset(value):
+        raise ValueError('datetime value has a non-UTC timezone')
+    return value.strftime('%Y-%m-%dT%H:%M:%SZ')
+
+
+def to_datetime(timestamp):
+    """
+    Convert MediaWiki timestamp to a datetime object.
+    Assumes the format to be in "MW" ISO with "Z" instead of +00:00 for timezone.
+    :type timestamp: str
+    :rtype datetime
+    """
+    return datetime.strptime(timestamp, '%Y-%m-%dT%H:%M:%SZ')

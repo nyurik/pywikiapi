@@ -24,7 +24,7 @@ except ImportError:
     import urlparse
 
 
-class Site(object):
+class Site:
     """
     This object represents a MediaWiki API endpoint, e.g. https://en.wikipedia.org/w/api.php
     * url: Full url to site's api.php

@@ -1,33 +1,8 @@
 import unittest
-from datetime import datetime as dt, timedelta as td, tzinfo
+from datetime import datetime as dt
 
 from pywikiapi import Site
-
-
-class UTC(tzinfo):
-    """Simple UTC tzinfo to avoid external deps"""
-
-    def utcoffset(self, dt):
-        return td()
-
-    def tzname(self, dt):
-        return "UTC"
-
-    def dst(self, dt):
-        return td()
-
-
-class NonUTC(tzinfo):
-    """Simple NON-UTC tzinfo to avoid external deps"""
-
-    def utcoffset(self, dt):
-        return td(hours=1)
-
-    def tzname(self, dt):
-        return "NonUTC"
-
-    def dst(self, dt):
-        return None
+from .utils import UTC, NonUTC
 
 
 class Tests_CallPrep(unittest.TestCase):
