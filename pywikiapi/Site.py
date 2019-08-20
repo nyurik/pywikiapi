@@ -150,6 +150,8 @@ class Site:
         # Make server call
         kwargs['action'] = action
         kwargs['format'] = 'json'
+        if 'formatversion' not in kwargs:
+            kwargs['formatversion'] = 2
         if method == 'POST':
             request_kw['data'] = kwargs
         else:
