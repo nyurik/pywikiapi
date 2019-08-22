@@ -1,4 +1,5 @@
 import logging
+import time
 from typing import Union, Tuple
 import json
 import os
@@ -57,6 +58,10 @@ class Site:
         self.url = url
         self.tokens = {}
         self.no_ssl = False  # For non-ssl sites, might be needed to avoid HTTPS
+        self.maxlag = 5  # See https://www.mediawiki.org/wiki/Manual:Maxlag_parameter
+
+        # Number of retries to do in case of the lag error. 0 - don't retry. negative - infinite.
+        self.retry_on_lag_error = 10
 
         # This var will contain (username,password) after the .login() in case of the login-on-demand mode
         self._loginOnDemand = False  # type: Union[Tuple[unicode, unicode], bool]
@@ -97,7 +102,26 @@ class Site:
         if self._loginOnDemand and action != 'login':
             self.login(self._loginOnDemand[0], self._loginOnDemand[1])
 
-        data = self.parse_json(self.request(method, **request_kw))
+        try_count = 0
+        while True:
+            try_count += 1
+            response = self.request(method, **request_kw)
+            data = self.parse_json(response)
+            if 0 <= self.retry_on_lag_error < try_count:
+                break
+            try:
+                if data['error']['code'] != 'maxlag':
+                    break
+                retry_after = float(response.headers.get('Retry-After', 5))
+                # X-Database-Lag: The number of seconds of lag of the most lagged slave
+                self.logger.info('maxlag-retry', {
+                    'retry-after': retry_after,
+                    'lag': data['error']['lag'] if 'lag' in data['error'] else None,
+                    'x-database-lag': response.headers.get('X-Database-Lag', 5)
+                })
+                time.sleep(retry_after)
+            except KeyError:
+                break
 
         # Handle success and failure
         if 'error' in data:
@@ -152,10 +176,14 @@ class Site:
         kwargs['format'] = 'json'
         if 'formatversion' not in kwargs:
             kwargs['formatversion'] = 2
+        if self.maxlag is not None and 'maxlag' not in kwargs:
+            kwargs['maxlag'] = self.maxlag
+
         if method == 'POST':
             request_kw['data'] = kwargs
         else:
             request_kw['params'] = kwargs
+
         return method, request_kw
 
     def login(self, user, password, on_demand=False):
@@ -309,7 +337,6 @@ class Site:
         r = self.session.request(method, url, headers=headers, **request_kw)
         if not r.ok:
             raise ApiError('Call failed', r)
-
         if self.logger.isEnabledFor(logging.DEBUG):
             self.logger.debug('server-response', {'url': r.request.url, 'headers': headers})
         return r
