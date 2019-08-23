@@ -59,6 +59,7 @@ class Site:
         self.tokens = {}
         self.no_ssl = False  # For non-ssl sites, might be needed to avoid HTTPS
         self.maxlag = 5  # See https://www.mediawiki.org/wiki/Manual:Maxlag_parameter
+        self.auto_post_min_size = 2000  # If request is bigger than this, use POST instead
 
         # Number of retries to do in case of the lag error. 0 - don't retry. negative - infinite.
         self.retry_on_lag_error = 10
@@ -178,6 +179,8 @@ class Site:
             kwargs['formatversion'] = 2
         if self.maxlag is not None and 'maxlag' not in kwargs:
             kwargs['maxlag'] = self.maxlag
+        if sum(len(str(k)) + len(str(v)) + 2 for k, v in kwargs.items()) > self.auto_post_min_size:
+            method = 'POST'
 
         if method == 'POST':
             request_kw['data'] = kwargs
