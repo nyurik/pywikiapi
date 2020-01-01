@@ -1,51 +1,44 @@
-import logging
-import time
-from typing import Union, Tuple
 import json
+import logging
 import os
 import sys
+import time
+import urllib.parse as urlparse
+from datetime import datetime
+from typing import Union, Tuple
+
 import requests
 from requests.structures import CaseInsensitiveDict
-from datetime import datetime
 
 from .utils import ApiError, ApiPagesModifiedError
-
-PY3 = sys.version_info[0] == 3
-if PY3:
-    string_types = str,
-    unicode = str
-else:
-    # noinspection PyUnresolvedReferences
-    string_types = basestring,
-
-try:
-    import urllib.parse as urlparse
-except ImportError:
-    # noinspection PyUnresolvedReferences
-    import urlparse
+from .version import __version__
 
 
 class Site:
     """
-    This object represents a MediaWiki API endpoint, e.g. https://en.wikipedia.org/w/api.php
+    This object represents a MediaWiki API endpoint,
+    e.g. https://en.wikipedia.org/w/api.php
     * url: Full url to site's api.php
     * session: current request.session object
     * log: an object that will be used for logging. ConsoleLog is created by default
     """
 
-    def __init__(self, url, headers=None, session=None, logger=None, json_object_hook=None):
+    def __init__(self, url, headers=None, session=None, logger=None,
+                 json_object_hook=None):
         """
         Create a new Site object with a given MediaWiki API endpoint.
         You should always set a `User-Agent` header to identify your bot and allow
         site owner to contact you in case your bot misbehaves.
         By default, User-Agent is set to the dir name + script name of your bot.
         :param str url: API endpoint URL, e.g. https://en.wikipedia.org/w/api.php
-        :param Union[dict, CaseInsensitiveDict] headers: Optional headers as a dictionary.
-        :param requests.Session session: Allows user-supplied custom Session parameters, e.g. retries
+        :param Union[dict, CaseInsensitiveDict] headers: Optional headers as a dict.
+        :param requests.Session session: Allows user-supplied custom Session
+            parameters, e.g. retries.
         :param logging.Logger logger: Optional logger object for custom log output
-        :param object json_object_hook: use this param to set a custom json object creator,
-            e.g. pywikiapi.AttrDict. AttrDict allows direct property access to the result,
-            e.g response.query.allpages in addition to response['query']['allpages']
+        :param object json_object_hook: use this param to set a custom json object
+            creator, e.g. pywikiapi.AttrDict. AttrDict allows direct property access
+            to the result, e.g response.query.allpages in addition to
+            response['query']['allpages']
         """
         if logger is None:
             self.logger = logging.getLogger('pywikiapi')
@@ -60,13 +53,17 @@ class Site:
         self.no_ssl = False  # For non-ssl sites, might be needed to avoid HTTPS
         self._is_bot = None  # Will be set by the is_bot()
         self.maxlag = 5  # See https://www.mediawiki.org/wiki/Manual:Maxlag_parameter
-        self.auto_post_min_size = 2000  # If request is bigger than this, use POST instead
 
-        # Number of retries to do in case of the lag error. 0 - don't retry. negative - infinite.
+        # If request is bigger than this, use POST instead
+        self.auto_post_min_size = 2000
+
+        # Number of retries to do in case of the lag error.
+        # 0 - don't retry. negative - infinite.
         self.retry_on_lag_error = 10
 
-        # This var will contain (username,password) after the .login() in case of the login-on-demand mode
-        self._loginOnDemand = False  # type: Union[Tuple[unicode, unicode], bool]
+        # This var will contain (username,password) after the .login()
+        # in case of the login-on-demand mode
+        self._loginOnDemand = False  # type: Union[Tuple[str, str], bool]
         self.logged_in = False
 
         self.headers = CaseInsensitiveDict()
@@ -78,7 +75,8 @@ class Site:
             except (KeyError, AttributeError):
                 script = sys.executable
             path, f = os.path.split(script)
-            self.headers[u'User-Agent'] = u'%s-%s pywikiapi/0.1' % (os.path.basename(path), f)
+            self.headers[u'User-Agent'] = f'{os.path.basename(path)}-{f} ' \
+                                          f'pywikiapi/{__version__}'
 
     def __call__(self, action, **kwargs):
         """
@@ -90,18 +88,21 @@ class Site:
             In case of an error, ApiError exception will be raised
             Any warnings will be logged via the logging interface
 
-            :param unicode action : any of the MW API actions, e.g. 'query' and 'login'
+            :param str action : any of the MW API actions, e.g. 'query' and 'login'
 
             Several special "magic" parameters could be used to customize api call.
             Special parameters must be all CAPS to avoid collisions with the server API:
             :param POST: Use POST method when calling server API. Value is ignored.
             :param HTTPS: Force https (ssl) protocol for this request. Value is ignored.
             :param SSL: Same as HTTPS
-            :param EXTRAS: Any extra parameters as passed to requests' session.request(). Value is a dict()
+            :param EXTRAS: Any extra parameters as passed to requests
+                session.request(). Value is a dict()
             :param NO_LOGIN: do not attempt to do a login step if True
         """
-        if self._loginOnDemand and action != 'login' and \
-            ('NO_LOGIN' not in kwargs or not kwargs['NO_LOGIN']):
+        if self._loginOnDemand and action != 'login' and (
+            'NO_LOGIN' not in kwargs
+            or not kwargs['NO_LOGIN']
+        ):
             self.login(self._loginOnDemand[0], self._loginOnDemand[1])
 
         method, request_kw = self._prepare_call(action, kwargs)
@@ -111,45 +112,62 @@ class Site:
             try_count += 1
             response = self.request(method, **request_kw)
             data = self.parse_json(response)
-            if 0 <= self.retry_on_lag_error < try_count:
-                break
             try:
                 if data['error']['code'] != 'maxlag':
                     break
-                retry_after = float(response.headers.get('Retry-After', 5))
+            except KeyError:
+                break
+
+            retry_after = float(response.headers.get('Retry-After', 5))
+            no_retry = 0 <= self.retry_on_lag_error < try_count
+
+            if self.logger.isEnabledFor(logging.WARNING if no_retry else logging.INFO):
                 # X-Database-Lag: The number of seconds of lag of the most lagged slave
-                self.logger.info('maxlag-retry', {
+                message = "Server exceeded maxlag"
+                if not no_retry:
+                    message += f", retrying in {retry_after}s"
+                if 'lag' in data['error']:
+                    message += f", lag={data['error']['lag']}"
+                message += f", API={self.url}"
+
+                log = self.logger.warning if no_retry else self.logger.info
+                log(message, {
+                    'code': 'maxlag-retry',
                     'retry-after': retry_after,
                     'lag': data['error']['lag'] if 'lag' in data['error'] else None,
                     'x-database-lag': response.headers.get('X-Database-Lag', 5)
                 })
-                time.sleep(retry_after)
-            except KeyError:
+
+            if no_retry:
                 break
+
+            time.sleep(retry_after)
 
         # Handle success and failure
         if 'error' in data:
             raise ApiError('Server API Error', data['error'])
-        if 'warnings' in data:
-            messages = '\n'.join((
+        if 'warnings' in data and self.logger.isEnabledFor(logging.WARNING):
+            message = '\n'.join((
                 str(vv[1]['warnings'] if 'warnings' in vv[1] else vv[1])
                 for vv in sorted(data['warnings'].items(),
                                  key=lambda v: '' if v[0] == 'main' else v[0])))
-            self.logger.warning(messages,
+            self.logger.warning(message,
                                 dict(code='server-warnings', warnings=data['warnings']))
         return data
 
     def _prepare_call(self, action, kwargs):
         """
         Prepares parameters before calling MW API
-        :param unicode action: which MW API action to do
+        :param str action: which MW API action to do
         :param dict kwargs: key-value parameters as passed to the self.__call__()
         :return:
         """
         # Magic CAPS parameters
         method = 'POST' if 'POST' in kwargs or action in ['login', 'edit'] else 'GET'
         request_kw = dict() if 'EXTRAS' not in kwargs else kwargs['EXTRAS']
-        request_kw['force_ssl'] = not self.no_ssl and (action == 'login' or 'SSL' in kwargs or 'HTTPS' in kwargs)
+        request_kw['force_ssl'] = \
+            not self.no_ssl and \
+            (action == 'login' or 'SSL' in kwargs or 'HTTPS' in kwargs)
         # Clean up magic CAPS params as they shouldn't be passed to the server
         for k in ['POST', 'SSL', 'HTTPS', 'EXTRAS', 'NO_LOGIN']:
             if k in kwargs:
@@ -167,7 +185,7 @@ class Site:
                 return value.strftime('%Y-%m-%dT%H:%M:%SZ')
             if isinstance(value, bool):
                 return '1' if value else None
-            return unicode(value)
+            return str(value)
 
         for k, val in list(kwargs.items()):
             # Only support the well known types.
@@ -345,7 +363,8 @@ class Site:
         :return: str
         """
         if token_type not in self.tokens:
-            res = self.query(meta='tokens', type=token_type, NO_LOGIN=token_type == 'login')
+            res = self.query(meta='tokens', type=token_type,
+                             NO_LOGIN=token_type == 'login')
             self.tokens[token_type] = next(res)['tokens'][token_type + 'token']
         return self.tokens[token_type]
 
@@ -367,7 +386,12 @@ class Site:
         if not r.ok:
             raise ApiError('Call failed', r)
         if self.logger.isEnabledFor(logging.DEBUG):
-            self.logger.debug('server-response', {'url': r.request.url, 'headers': headers})
+            message = f"Request: {r.request.url}\nResponse: {len(r.content):,} bytes"
+            self.logger.debug(message, dict(
+                code='server-response',
+                url=r.request.url,
+                headers=headers,
+            ))
         return r
 
     def parse_json(self, value):
@@ -375,7 +399,7 @@ class Site:
         Utility function to convert server reply into a JSON object.
         By default, JSON objects support direct property access (JavaScript style)
         """
-        if isinstance(value, string_types):
+        if isinstance(value, str):
             return json.loads(value, object_hook=self.json_object_hook)
         elif hasattr(value.__class__, 'json'):
             return value.json(object_hook=self.json_object_hook)

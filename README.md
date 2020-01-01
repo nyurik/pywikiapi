@@ -32,7 +32,7 @@ You can install the  from [PyPI](https://pypi.org/project/pywikiapi/):
 
     pip install pywikiapi
 
-The library supports Python 2.7+ and Python 3.4+
+The library supports Python 3.6+
 
 ## How to use
 
