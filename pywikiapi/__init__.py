@@ -4,4 +4,4 @@ from pywikiapi.utils import ApiError, ApiPagesModifiedError, AttrDict, to_dateti
 from pywikiapi.Site import Site
 from pywikiapi.api import wikipedia
 
-__version__ = "3.1.0"
+__version__ = "4.0.0"

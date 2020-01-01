@@ -58,6 +58,7 @@ class Site:
         self.url = url
         self.tokens = {}
         self.no_ssl = False  # For non-ssl sites, might be needed to avoid HTTPS
+        self._is_bot = None  # Will be set by the is_bot()
         self.maxlag = 5  # See https://www.mediawiki.org/wiki/Manual:Maxlag_parameter
         self.auto_post_min_size = 2000  # If request is bigger than this, use POST instead
 
@@ -97,11 +98,13 @@ class Site:
             :param HTTPS: Force https (ssl) protocol for this request. Value is ignored.
             :param SSL: Same as HTTPS
             :param EXTRAS: Any extra parameters as passed to requests' session.request(). Value is a dict()
+            :param NO_LOGIN: do not attempt to do a login step if True
         """
-        method, request_kw = self._prepare_call(action, kwargs)
-
-        if self._loginOnDemand and action != 'login':
+        if self._loginOnDemand and action != 'login' and \
+            ('NO_LOGIN' not in kwargs or not kwargs['NO_LOGIN']):
             self.login(self._loginOnDemand[0], self._loginOnDemand[1])
+
+        method, request_kw = self._prepare_call(action, kwargs)
 
         try_count = 0
         while True:
@@ -128,7 +131,12 @@ class Site:
         if 'error' in data:
             raise ApiError('Server API Error', data['error'])
         if 'warnings' in data:
-            self.logger.warning('server-warnings', {'warnings': data['warnings']})
+            messages = '\n'.join((
+                str(vv[1]['warnings'] if 'warnings' in vv[1] else vv[1])
+                for vv in sorted(data['warnings'].items(),
+                                 key=lambda v: '' if v[0] == 'main' else v[0])))
+            self.logger.warning(messages,
+                                dict(code='server-warnings', warnings=data['warnings']))
         return data
 
     def _prepare_call(self, action, kwargs):
@@ -143,7 +151,7 @@ class Site:
         request_kw = dict() if 'EXTRAS' not in kwargs else kwargs['EXTRAS']
         request_kw['force_ssl'] = not self.no_ssl and (action == 'login' or 'SSL' in kwargs or 'HTTPS' in kwargs)
         # Clean up magic CAPS params as they shouldn't be passed to the server
-        for k in ['POST', 'SSL', 'HTTPS', 'EXTRAS']:
+        for k in ['POST', 'SSL', 'HTTPS', 'EXTRAS', 'NO_LOGIN']:
             if k in kwargs:
                 del kwargs[k]
 
@@ -151,7 +159,8 @@ class Site:
             if value is None:
                 return None
             if isinstance(value, datetime):
-                # .isoformat() wouldn't work because it sometimes produces +00:00 that MW does not support
+                # .isoformat() wouldn't work because it sometimes
+                # produces +00:00 that MW does not support
                 # Also perform sanity check here to make sure this is a UTC time
                 if value.tzinfo is not None and value.tzinfo.utcoffset(value):
                     raise ValueError('datetime value has a non-UTC timezone')
@@ -179,7 +188,8 @@ class Site:
             kwargs['formatversion'] = 2
         if self.maxlag is not None and 'maxlag' not in kwargs:
             kwargs['maxlag'] = self.maxlag
-        if sum(len(str(k)) + len(str(v)) + 2 for k, v in kwargs.items()) > self.auto_post_min_size:
+        data_size = sum(len(str(k)) + len(str(v)) + 2 for k, v in kwargs.items())
+        if data_size > self.auto_post_min_size:
             method = 'POST'
 
         if method == 'POST':
@@ -193,19 +203,27 @@ class Site:
         """
         :param str user: user login name
         :param str password: user password
-        :param bool on_demand: if True, will postpone login until an actual API request is made
+        :param bool on_demand: postpone login until an actual API request is made
         """
         self.tokens = {}
         if on_demand:
             self._loginOnDemand = (user, password)
             return
-        res = self('login', lgname=user, lgpassword=password)['login']
-        if res['result'] == 'NeedToken':
-            res = self('login', lgname=user, lgpassword=password, lgtoken=res['token'])['login']
+        res = self('login', lgname=user, lgpassword=password,
+                   lgtoken=self.token('login'))['login']
         if res['result'] != 'Success':
             raise ApiError('Login failed', res)
         self._loginOnDemand = False
         self.logged_in = True
+
+    def is_bot(self) -> bool:
+        """
+        Checks if the current user account has the "bot" user right.
+        """
+        if self._is_bot is None:
+            res = self('query', meta='userinfo', uiprop='rights')
+            self._is_bot = 'bot' in res.query.userinfo.rights
+        return self._is_bot
 
     def query(self, **kwargs):
         """
@@ -216,17 +234,20 @@ class Site:
 
     def iterate(self, action, **kwargs):
         """
-        Call any "continuation" style MW API with given parameters, such as the 'query' API.
-        Yields all results returned by the server, properly handling result continuation.
-        Use generator.send({...}) to dynamically adjust next request's parameters with the new parameters.
+        Call any "continuation" style MW API with given parameters, such as
+        the 'query' API. Yields all results returned by the server, properly
+        handling result continuation. Use generator.send({...}) to dynamically
+        adjust next request's parameters with the new parameters.
         :param str action: MW API action, e.g. 'query'
         :param kwargs: any API parameters
         :return: yields each response from the server
         """
         if 'rawcontinue' in kwargs:
-            raise ValueError("rawcontinue is not supported with query() function, use object's __call__()")
+            raise ValueError("rawcontinue is not supported with query() function, "
+                             "use object's __call__()")
         if 'formatversion' in kwargs:
-            raise ValueError("version is not supported with query() function, use object's __call__()")
+            raise ValueError("version is not supported with query() function, "
+                             "use object's __call__()")
         if 'continue' not in kwargs:
             kwargs['continue'] = ''
         req = kwargs
@@ -250,11 +271,14 @@ class Site:
         Query the server and yield all page objects one by one.
         This method makes sure that results received in multiple responses are
         correctly merged together.
-        If any of the pages change during iteration, ApiPagesModifiedError(list) will be thrown
-        after all other pages have been processed and yielded.
+        If any of the pages change during iteration, ApiPagesModifiedError(list)
+        will be thrown after all other pages have been processed and yielded.
         """
-        incomplete = {}  # A dict with incomplete page objects
-        modified = set()  # A set of page ids that we will ignore because they have been modified during iteration
+        # A dict with incomplete page objects
+        incomplete = {}
+        # A set of page ids that we will ignore because
+        # they have been modified during iteration
+        modified = set()
         missing = set()
         for result in self.query(**kwargs):
             if 'pages' not in result:
@@ -274,7 +298,8 @@ class Site:
                     p = incomplete[page_id]
                     del incomplete[page_id]
                     if 'lastrevid' in page and p['lastrevid'] != page['lastrevid']:
-                        # someone else modified this page, it must be requested separately in a new query
+                        # someone else modified this page,
+                        # it must be requested separately in a new query
                         modified.add(page_id)
                         continue
                     # Merge additional page data into the same dict
@@ -320,7 +345,8 @@ class Site:
         :return: str
         """
         if token_type not in self.tokens:
-            self.tokens[token_type] = next(self.query(meta='tokens', type=token_type))['tokens'][token_type + 'token']
+            res = self.query(meta='tokens', type=token_type, NO_LOGIN=token_type == 'login')
+            self.tokens[token_type] = next(res)['tokens'][token_type + 'token']
         return self.tokens[token_type]
 
     def request(self, method, force_ssl=False, headers=None, **request_kw):
