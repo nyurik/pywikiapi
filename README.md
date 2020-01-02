@@ -1,5 +1,9 @@
 # pywikiapi: A Tiny Python MediaWiki API Lib
 
+[![](https://img.shields.io/travis/nyurik/pywikiapi)](https://travis-ci.org/nyurik/pywikiapi)
+[![](https://img.shields.io/github/issues/nyurik/pywikiapi)](https://github.com/nyurik/pywikiapi/issues)
+[![](https://img.shields.io/github/issues-pr/nyurik/pywikiapi)](https://github.com/nyurik/pywikiapi/pulls)
+
 This is a minimalistic library that handles some of the core MediaWiki API complexities like handling continuations, login, errors, and warnings, but does not impose any additional abstraction layers, allowing you to use every single feature of the MW API directly in the most optimal way. 
 
 The library was written by the original author of the MediaWiki API itself, and tries to address some of the mistakes of the original API design... Some things should have been done differently. :)
