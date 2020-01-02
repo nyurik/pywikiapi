@@ -1,0 +1,14 @@
+dist: xenial
+language: python
+python:
+    - 3.6
+    - 3.7
+    - 3.8
+sudo: false
+install:
+    - pip install coveralls
+    - python setup.py build
+script:
+    - coverage run --source=pywikiapi setup.py -q test
+after_success:
+    - coveralls

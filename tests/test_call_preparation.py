@@ -20,9 +20,11 @@ class Tests_CallPrep(unittest.TestCase):
                 int=42,
                 int0=0,
                 datetime=dt(year=2000, month=1, day=1, hour=2, minute=42),
-                datetimeUtc=dt(year=2000, month=1, day=1, hour=2, minute=42).replace(tzinfo=UTC()),
+                datetimeUtc=dt(year=2000, month=1, day=1, hour=2, minute=42)
+                    .replace(tzinfo=UTC()),
                 listEmpty=[],
-                list=[None, 'str', '', True, False, 42, 0, dt(year=2000, month=1, day=1, hour=2, minute=42)],
+                list=[None, 'str', '', True, False, 42, 0,
+                      dt(year=2000, month=1, day=1, hour=2, minute=42)],
             ))
 
         self.assertEqual('GET', method)
@@ -30,6 +32,8 @@ class Tests_CallPrep(unittest.TestCase):
             force_ssl=False,
             params=dict(
                 format='json',
+                formatversion=2,
+                maxlag=5,
                 action='query',
                 str='str',
                 strEmpty='',
@@ -52,8 +56,10 @@ class Tests_CallPrep(unittest.TestCase):
             force_ssl=True,
             data=dict(
                 format='json',
+                formatversion=2,
                 action='login',
                 test='abc',
+                maxlag=5,
             )))
 
     def test_call_prep_dt_err(self):

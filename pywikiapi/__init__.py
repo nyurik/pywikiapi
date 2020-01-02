@@ -1,10 +1,13 @@
 """Minimalistic MediaWiki API library by the author of the MediaWiki API itself.
 See README.md"""
 
-from pywikiapi.utils import ApiError, ApiPagesModifiedError, AttrDict, to_datetime, \
-    to_timestamp
-from pywikiapi.Site import Site
-from pywikiapi.api import wikipedia
-import pywikiapi.version
+__version__ = "4.1.0"
 
-__version__ = version.__version__
+__author__ = "Yuri Astrakhan"
+__copyright__ = "Copyright (C) 2018-2020 Yuri Astrakhan"
+__license__ = "MIT License"
+__email__ = "YuriAstrakhan@gmail.com"
+
+from .Site import Site
+from .api import wikipedia
+from .utils import ApiError, ApiPagesModifiedError, AttrDict, to_datetime, to_timestamp

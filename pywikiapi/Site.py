@@ -1,17 +1,16 @@
 import json
 import logging
-import os
 import sys
 import time
 import urllib.parse as urlparse
 from datetime import datetime
+from pathlib import Path
 from typing import Union, Tuple
 
 import requests
 from requests.structures import CaseInsensitiveDict
 
 from .utils import ApiError, ApiPagesModifiedError
-from .version import __version__
 
 
 class Site:
@@ -71,12 +70,12 @@ class Site:
             self.headers.update(headers)
         if u'User-Agent' not in self.headers:
             try:
-                script = os.path.abspath(sys.modules['__main__'].__file__)
+                script = Path(sys.modules['__main__'].__file__)
             except (KeyError, AttributeError):
-                script = sys.executable
-            path, f = os.path.split(script)
-            self.headers[u'User-Agent'] = f'{os.path.basename(path)}-{f} ' \
-                                          f'pywikiapi/{__version__}'
+                script = Path(sys.executable)
+            self.headers[u'User-Agent'] = \
+                f'{script.parent.parent.name}-{script.name} pywikiapi/4.1.0'
+            print(self.headers[u'User-Agent'])
 
     def __call__(self, action, **kwargs):
         """

@@ -32,7 +32,7 @@ You can install the  from [PyPI](https://pypi.org/project/pywikiapi/):
 
     pip install pywikiapi
 
-The library supports Python 3.6+
+The library requires Python 3.6+
 
 ## How to use
 
@@ -48,3 +48,6 @@ The library will properly handle all of the basic parameter types:
 * `None` and boolean `False` will **not** be included.
 * Datetimes will be formatted with `isoformat()`. **Warning:** make sure datetime is in UTC timezone.
 * Lists will be converted into a pipe `|` -separated string of values.
+
+## Development
+To test, run `python3 setup.py test -q` or use `./test.sh`

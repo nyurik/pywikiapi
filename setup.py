@@ -1,30 +1,31 @@
 """Setup script for pywikiapi"""
 
-import os.path
-from setuptools import setup
+from pathlib import Path
 
-with open(os.path.join(os.path.dirname(__file__), "README.md")) as fid:
-    README = fid.read()
+from setuptools import setup, find_packages
 
 setup(
     name="pywikiapi",
-    version="4.0.0",
+    version="4.1.0",
     description="Tiny MediaWiki API client library from the author of the MW API",
-    long_description=README,
+    long_description=(Path(__file__).parent / "README.md").read_text(),
     long_description_content_type="text/markdown",
+    packages=find_packages(exclude=("tests",)),
+    test_suite="tests",
     url="https://github.com/nyurik/pywikiapi",
     author="Yuri Astrakhan",
     author_email="YuriAstrakhan@gmail.com",
     license="MIT",
     classifiers=[
         "License :: OSI Approved :: MIT License",
+        "Intended Audience :: Developers",
+        "Operating System :: OS Independent",
         "Programming Language :: Python",
         "Programming Language :: Python :: 3",
+        "Programming Language :: Python :: 3.6",
+        "Programming Language :: Python :: 3.7",
+        "Programming Language :: Python :: 3.8",
     ],
-    packages=["pywikiapi"],
     include_package_data=True,
-    install_requires=[
-        "importlib_resources", "typing", 'requests'
-    ],
-    entry_points={"console_scripts": ["pywikiapi=reader.__main__:main"]},
+    install_requires=["requests", 'responses'],
 )

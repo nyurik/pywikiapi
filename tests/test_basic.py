@@ -1,7 +1,8 @@
 import unittest
 
-from pywikiapi import wikipedia
 import requests
+
+from pywikiapi import wikipedia
 
 
 class Tests(unittest.TestCase):
