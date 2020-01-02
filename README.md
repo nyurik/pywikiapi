@@ -1,6 +1,7 @@
 # pywikiapi: A Tiny Python MediaWiki API Lib
 
 [![](https://img.shields.io/travis/nyurik/pywikiapi)](https://travis-ci.org/nyurik/pywikiapi)
+[![](https://img.shields.io/coveralls/github/nyurik/pywikiapi)](https://coveralls.io/github/nyurik/pywikiapi)
 [![](https://img.shields.io/github/issues/nyurik/pywikiapi)](https://github.com/nyurik/pywikiapi/issues)
 [![](https://img.shields.io/github/issues-pr/nyurik/pywikiapi)](https://github.com/nyurik/pywikiapi/pulls)
 
