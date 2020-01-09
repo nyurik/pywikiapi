@@ -6,7 +6,7 @@ from setuptools import setup, find_packages
 
 setup(
     name="pywikiapi",
-    version="4.1.0",
+    version="4.1.1",
     description="Tiny MediaWiki API client library from the author of the MW API",
     long_description=(Path(__file__).parent / "README.md").read_text(),
     long_description_content_type="text/markdown",

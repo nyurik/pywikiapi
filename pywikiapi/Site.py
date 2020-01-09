@@ -74,8 +74,7 @@ class Site:
             except (KeyError, AttributeError):
                 script = Path(sys.executable)
             self.headers[u'User-Agent'] = \
-                f'{script.parent.parent.name}-{script.name} pywikiapi/4.1.0'
-            print(self.headers[u'User-Agent'])
+                f'{script.parent.parent.name}-{script.name} pywikiapi/4.1.1'
 
     def __call__(self, action, **kwargs):
         """
