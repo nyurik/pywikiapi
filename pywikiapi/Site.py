@@ -74,7 +74,7 @@ class Site:
             except (KeyError, AttributeError):
                 script = Path(sys.executable)
             self.headers[u'User-Agent'] = \
-                f'{script.parent.parent.name}-{script.name} pywikiapi/4.1.1'
+                f'{script.parent.parent.name}-{script.name} pywikiapi/4.2.0'
 
     def __call__(self, action, **kwargs):
         """
@@ -204,7 +204,11 @@ class Site:
             kwargs['formatversion'] = 2
         if self.maxlag is not None and 'maxlag' not in kwargs:
             kwargs['maxlag'] = self.maxlag
-        data_size = sum(len(str(k)) + len(str(v)) + 2 for k, v in kwargs.items())
+
+        # Estimate the size of the utf-8 encoded URL, and auto-switch to POST if too big
+        data_size = sum(
+            len(str(k).encode('utf-8')) + len(str(v).encode('utf-8')) + 2
+            for k, v in kwargs.items())
         if data_size > self.auto_post_min_size:
             method = 'POST'
 
