@@ -74,7 +74,7 @@ class Site:
             except (KeyError, AttributeError):
                 script = Path(sys.executable)
             self.headers[u'User-Agent'] = \
-                f'{script.parent.parent.name}-{script.name} pywikiapi/4.2.0'
+                f'{script.parent.parent.name}-{script.name} pywikiapi/4.3.0'
 
     def __call__(self, action, **kwargs):
         """
@@ -186,9 +186,13 @@ class Site:
             return str(value)
 
         for k, val in list(kwargs.items()):
-            # Only support the well known types.
-            # Everything else should be client's responsibility
-            if isinstance(val, list) or isinstance(val, tuple) or isinstance(val, set):
+            # Support all iterables as lists except for strings
+            try:
+                iter(val)
+                iterable = not isinstance(val, str)
+            except TypeError:
+                iterable = False
+            if iterable:
                 val = [update_value(v) for v in val]
                 kwargs[k] = u'|'.join(filter(lambda v: v is not None, val))
             else:
@@ -402,11 +406,13 @@ class Site:
         By default, JSON objects support direct property access (JavaScript style)
         """
         if isinstance(value, str):
+            # noinspection PyTypeChecker
             return json.loads(value, object_hook=self.json_object_hook)
         elif hasattr(value.__class__, 'json'):
             return value.json(object_hook=self.json_object_hook)
         else:
             # Our servers still have requests 0.8.2 ... :(
+            # noinspection PyTypeChecker
             return json.loads(value.content, object_hook=self.json_object_hook)
 
     def __str__(self):

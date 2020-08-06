@@ -5,7 +5,12 @@ from pywikiapi import Site
 from .utils import UTC, NonUTC
 
 
+# noinspection PyPep8Naming
 class Tests_CallPrep(unittest.TestCase):
+
+    def __init__(self, *args) -> None:
+        super().__init__(*args)
+        self.maxDiff = None
 
     def test_call_prep_types(self):
         site = Site('url')
@@ -25,6 +30,8 @@ class Tests_CallPrep(unittest.TestCase):
                 listEmpty=[],
                 list=[None, 'str', '', True, False, 42, 0,
                       dt(year=2000, month=1, day=1, hour=2, minute=42)],
+                list_keys=dict(key1='foo', key2='bar').keys(),
+                list_values=dict(key1='foo', key2='bar').values(),
             ))
 
         self.assertEqual('GET', method)
@@ -44,6 +51,8 @@ class Tests_CallPrep(unittest.TestCase):
                 datetimeUtc='2000-01-01T02:42:00Z',
                 listEmpty='',
                 list='str||1|42|0|2000-01-01T02:42:00Z',
+                list_keys='key1|key2',
+                list_values='foo|bar',
             )))
 
     def test_call_prep_login(self):

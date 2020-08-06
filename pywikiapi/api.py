@@ -1,5 +1,5 @@
-from .utils import AttrDict
 from .Site import Site
+from .utils import AttrDict
 
 
 def wikipedia(language='en', site='wikipedia', scheme='https', **kwargs):

@@ -17,7 +17,8 @@ class ApiError(Exception):
 
 class ApiPagesModifiedError(ApiError):
     """
-    This error is thrown by queryPage() if revision of some pages was changed between calls.
+    This error is thrown by queryPage() if the revision of some pages
+    was changed between calls.
     """
 
     def __init__(self, data):
@@ -26,7 +27,8 @@ class ApiPagesModifiedError(ApiError):
 
 class AttrDict(dict):
     """
-    Taken from http://stackoverflow.com/questions/4984647/accessing-dict-keys-like-an-attribute-in-python/25320214
+    Taken from
+    http://stackoverflow.com/questions/4984647/accessing-dict-keys-like-an-attribute-in-python/25320214
     But it seems we should at some point switch to https://pypi.python.org/pypi/attrdict
     """
 
@@ -41,7 +43,8 @@ def to_timestamp(value):
     :type value: datetime
     :rtype str
     """
-    # datetime.isoformat() wouldn't work because it sometimes produces +00:00 that MW does not support
+    # datetime.isoformat() wouldn't work because it sometimes produces +00:00
+    # that MW does not support.
     # Also perform sanity check here to make sure this is a UTC time
     if value.tzinfo is not None and value.tzinfo.utcoffset(value):
         raise ValueError('datetime value has a non-UTC timezone')

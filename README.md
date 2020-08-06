@@ -33,9 +33,13 @@ site('edit', text=...)
 
 ## Installation
 
-You can install the  from [PyPI](https://pypi.org/project/pywikiapi/):
+You can install the library from [PyPI](https://pypi.org/project/pywikiapi/):
 
     pip install pywikiapi
+    
+or
+
+    python3 -m pip install pywikiapi
 
 The library requires Python 3.6+
 
