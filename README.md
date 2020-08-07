@@ -48,7 +48,7 @@ The library requires Python 3.6+
 * Create a `Site` object, either directly or with the `wikipedia` helper function.
 * Use `site.query(...)` or `site.iterate(action, ...)` for all iteration-related API calls. The API will handle all the continuation logic internally.
 * Use `site.query_pages(...)` to get one page object at a time from the action=query.
-* Use `site('query', meta='siteinfo')` te access any API action, passing any additional params as keys.
+* Use `site('query', meta='siteinfo')` to access any API action, passing any additional params as keys.
 
 ### Data formats
 The library will properly handle all of the basic parameter types:
