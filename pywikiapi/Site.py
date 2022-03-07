@@ -23,7 +23,7 @@ class Site:
     """
 
     def __init__(self, url, headers=None, session=None, logger=None,
-                 json_object_hook=None):
+                 json_object_hook=None, retry_after_conn=5, pre_request_delay=0):
         """
         Create a new Site object with a given MediaWiki API endpoint.
         You should always set a `User-Agent` header to identify your bot and allow
@@ -38,6 +38,10 @@ class Site:
             creator, e.g. pywikiapi.AttrDict. AttrDict allows direct property access
             to the result, e.g response.query.allpages in addition to
             response['query']['allpages']
+        :param retry_after_conn: nb of seconds to wait before retrying
+            after a ConnectionError
+        :param pre_request_delay: nb of seconds to wait before sending a request
+            to the API
         """
         if logger is None:
             self.logger = logging.getLogger('pywikiapi')
@@ -59,6 +63,15 @@ class Site:
         # Number of retries to do in case of the lag error.
         # 0 - don't retry. negative - infinite.
         self.retry_on_lag_error = 10
+
+        # Number of retries to do in case of ConnectionError
+        # 0 - don't retry. negative - infinite
+        self.retry_on_connection_error = 10
+        self.retry_after_conn = retry_after_conn
+
+        # pause before each request to Site in seconds.
+        # 0 - don't pause.
+        self.pre_request_delay = pre_request_delay
 
         # This var will contain (username,password) after the .login()
         # in case of the login-on-demand mode
@@ -106,9 +119,26 @@ class Site:
         method, request_kw = self._prepare_call(action, kwargs)
 
         try_count = 0
+        try_count_conn = 0
         while True:
             try_count += 1
-            response = self.request(method, **request_kw)
+            try_count_conn += 1
+
+            if self.pre_request_delay:
+                time.sleep(self.pre_request_delay)
+            try:
+                response = self.request(method, **request_kw)
+            except requests.exceptions.ConnectionError as exc:
+                no_retry_conn = 0 <= self.retry_on_connection_error < try_count_conn
+                if self.logger.isEnabledFor(
+                        logging.WARNING if no_retry_conn else logging.INFO):
+                    if no_retry_conn:
+                        self.logger.warning("ConnectionError exhausted retries")
+                        raise exc
+                    self.logger.warning(
+                            "ConnectionError, retrying in {self.retry_after_conn}s")
+                time.sleep(self.retry_after_conn)
+                continue
             data = self.parse_json(response)
             try:
                 if data['error']['code'] != 'maxlag':
