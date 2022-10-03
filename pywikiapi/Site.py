@@ -55,14 +55,14 @@ class Site:
         self.tokens = {}
         self.no_ssl = False  # For non-ssl sites, might be needed to avoid HTTPS
         self._is_bot = None  # Will be set by the is_bot()
-        self.maxlag = 5  # See https://www.mediawiki.org/wiki/Manual:Maxlag_parameter
+        self.maxlag = 30  # See https://www.mediawiki.org/wiki/Manual:Maxlag_parameter
 
         # If request is bigger than this, use POST instead
         self.auto_post_min_size = 2000
 
         # Number of retries to do in case of the lag error.
         # 0 - don't retry. negative - infinite.
-        self.retry_on_lag_error = 10
+        self.retry_on_lag_error = 50
 
         # Number of retries to do in case of ConnectionError
         # 0 - don't retry. negative - infinite
