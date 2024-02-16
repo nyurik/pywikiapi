@@ -425,7 +425,11 @@ class Site:
 
         r = self.session.request(method, url, timeout=timeout, headers=headers, **request_kw)
         if not r.ok:
-            raise ApiError('Call failed', r)
+            try:
+                raise ApiError('Call failed', {"status_code": r.status_code, "json_body": r.json()})
+            except requests.exceptions.JSONDecodeError:
+                raise ApiError('Call failed', {"status_code": r.status_code, "text_body": r.text}) from None
+
         if self.logger.isEnabledFor(logging.DEBUG):
             message = f"Request: {r.request.url}\nResponse: {len(r.content):,} bytes"
             self.logger.debug(message, dict(
