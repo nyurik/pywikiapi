@@ -23,7 +23,8 @@ class Site:
     """
 
     def __init__(self, url, headers=None, session=None, logger=None,
-                 json_object_hook=None, retry_after_conn=5, pre_request_delay=0):
+                 json_object_hook=None, retry_after_conn=5, pre_request_delay=0, 
+                 requests_timeout=60):
         """
         Create a new Site object with a given MediaWiki API endpoint.
         You should always set a `User-Agent` header to identify your bot and allow
@@ -72,6 +73,10 @@ class Site:
         # pause before each request to Site in seconds.
         # 0 - don't pause.
         self.pre_request_delay = pre_request_delay
+
+        # timeout for HTTP requests
+        # None - don't timeout
+        self.requests_timeout = requests_timeout
 
         # This var will contain (username,password) after the .login()
         # in case of the login-on-demand mode
@@ -127,7 +132,7 @@ class Site:
             if self.pre_request_delay:
                 time.sleep(self.pre_request_delay)
             try:
-                response = self.request(method, **request_kw)
+                response = self.request(method, timeout=self.requests_timeout, **request_kw)
             except requests.exceptions.ConnectionError as exc:
                 no_retry_conn = 0 <= self.retry_on_connection_error < try_count_conn
                 if self.logger.isEnabledFor(
@@ -404,7 +409,7 @@ class Site:
             self.tokens[token_type] = next(res)['tokens'][token_type + 'token']
         return self.tokens[token_type]
 
-    def request(self, method, force_ssl=False, headers=None, **request_kw):
+    def request(self, method, timeout, force_ssl=False, headers=None, **request_kw):
         """Make a low level request to the server"""
         url = self.url
         if force_ssl:
@@ -418,7 +423,7 @@ class Site:
         else:
             headers = self.headers
 
-        r = self.session.request(method, url, headers=headers, **request_kw)
+        r = self.session.request(method, url, timeout=timeout, headers=headers, **request_kw)
         if not r.ok:
             raise ApiError('Call failed', r)
         if self.logger.isEnabledFor(logging.DEBUG):
