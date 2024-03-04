@@ -1,9 +1,11 @@
 # pywikiapi: A Tiny Python MediaWiki API Lib
 
-[![](https://img.shields.io/travis/nyurik/pywikiapi)](https://travis-ci.org/nyurik/pywikiapi)
-[![](https://img.shields.io/coveralls/github/nyurik/pywikiapi)](https://coveralls.io/github/nyurik/pywikiapi)
-[![](https://img.shields.io/github/issues/nyurik/pywikiapi)](https://github.com/nyurik/pywikiapi/issues)
-[![](https://img.shields.io/github/issues-pr/nyurik/pywikiapi)](https://github.com/nyurik/pywikiapi/pulls)
+[![GitHub](https://img.shields.io/badge/github-pywikiapi-8da0cb?logo=github)](https://github.com/nyurik/pywikiapi)
+[![Coverage](https://img.shields.io/coveralls/github/nyurik/pywikiapi)](https://coveralls.io/github/nyurik/pywikiapi)
+[![Issues](https://img.shields.io/github/issues/nyurik/pywikiapi)](https://github.com/nyurik/pywikiapi/issues)
+[![Pull Requests](https://img.shields.io/github/issues-pr/nyurik/pywikiapi)](https://github.com/nyurik/pywikiapi/pulls)
+[![CI build](https://github.com/nyurik/pywikiapi/actions/workflows/ci.yml/badge.svg)](https://github.com/nyurik/pywikiapi/actions)
+
 
 This is a minimalistic library that handles some of the core MediaWiki API complexities like handling continuations, login, errors, and warnings, but does not impose any additional abstraction layers, allowing you to use every single feature of the MW API directly in the most optimal way. 
 
