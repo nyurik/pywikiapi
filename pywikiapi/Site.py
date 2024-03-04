@@ -23,7 +23,8 @@ class Site:
     """
 
     def __init__(self, url, headers=None, session=None, logger=None,
-                 json_object_hook=None):
+                 json_object_hook=None, retry_after_conn=5, pre_request_delay=0, 
+                 requests_timeout=60):
         """
         Create a new Site object with a given MediaWiki API endpoint.
         You should always set a `User-Agent` header to identify your bot and allow
@@ -38,6 +39,10 @@ class Site:
             creator, e.g. pywikiapi.AttrDict. AttrDict allows direct property access
             to the result, e.g response.query.allpages in addition to
             response['query']['allpages']
+        :param retry_after_conn: nb of seconds to wait before retrying
+            after a ConnectionError
+        :param pre_request_delay: nb of seconds to wait before sending a request
+            to the API
         """
         if logger is None:
             self.logger = logging.getLogger('pywikiapi')
@@ -51,14 +56,27 @@ class Site:
         self.tokens = {}
         self.no_ssl = False  # For non-ssl sites, might be needed to avoid HTTPS
         self._is_bot = None  # Will be set by the is_bot()
-        self.maxlag = 5  # See https://www.mediawiki.org/wiki/Manual:Maxlag_parameter
+        self.maxlag = 30  # See https://www.mediawiki.org/wiki/Manual:Maxlag_parameter
 
         # If request is bigger than this, use POST instead
         self.auto_post_min_size = 2000
 
         # Number of retries to do in case of the lag error.
         # 0 - don't retry. negative - infinite.
-        self.retry_on_lag_error = 10
+        self.retry_on_lag_error = 50
+
+        # Number of retries to do in case of ConnectionError
+        # 0 - don't retry. negative - infinite
+        self.retry_on_connection_error = 10
+        self.retry_after_conn = retry_after_conn
+
+        # pause before each request to Site in seconds.
+        # 0 - don't pause.
+        self.pre_request_delay = pre_request_delay
+
+        # timeout for HTTP requests
+        # None - don't timeout
+        self.requests_timeout = requests_timeout
 
         # This var will contain (username,password) after the .login()
         # in case of the login-on-demand mode
@@ -106,9 +124,26 @@ class Site:
         method, request_kw = self._prepare_call(action, kwargs)
 
         try_count = 0
+        try_count_conn = 0
         while True:
             try_count += 1
-            response = self.request(method, **request_kw)
+            try_count_conn += 1
+
+            if self.pre_request_delay:
+                time.sleep(self.pre_request_delay)
+            try:
+                response = self.request(method, timeout=self.requests_timeout, **request_kw)
+            except requests.exceptions.ConnectionError as exc:
+                no_retry_conn = 0 <= self.retry_on_connection_error < try_count_conn
+                if self.logger.isEnabledFor(
+                        logging.WARNING if no_retry_conn else logging.INFO):
+                    if no_retry_conn:
+                        self.logger.warning("ConnectionError exhausted retries")
+                        raise exc
+                    self.logger.warning(
+                            "ConnectionError, retrying in {self.retry_after_conn}s")
+                time.sleep(self.retry_after_conn)
+                continue
             data = self.parse_json(response)
             try:
                 if data['error']['code'] != 'maxlag':
@@ -374,7 +409,7 @@ class Site:
             self.tokens[token_type] = next(res)['tokens'][token_type + 'token']
         return self.tokens[token_type]
 
-    def request(self, method, force_ssl=False, headers=None, **request_kw):
+    def request(self, method, timeout, force_ssl=False, headers=None, **request_kw):
         """Make a low level request to the server"""
         url = self.url
         if force_ssl:
@@ -388,9 +423,13 @@ class Site:
         else:
             headers = self.headers
 
-        r = self.session.request(method, url, headers=headers, **request_kw)
+        r = self.session.request(method, url, timeout=timeout, headers=headers, **request_kw)
         if not r.ok:
-            raise ApiError('Call failed', r)
+            try:
+                raise ApiError('Call failed', {"status_code": r.status_code, "json_body": r.json()})
+            except requests.exceptions.JSONDecodeError:
+                raise ApiError('Call failed', {"status_code": r.status_code, "text_body": r.text}) from None
+
         if self.logger.isEnabledFor(logging.DEBUG):
             message = f"Request: {r.request.url}\nResponse: {len(r.content):,} bytes"
             self.logger.debug(message, dict(
