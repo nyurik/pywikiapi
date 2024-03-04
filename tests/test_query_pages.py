@@ -100,8 +100,11 @@ class Tests_QueryPages(unittest.TestCase):
     def assert_call(self, index, expected: dict):
         self.assertLess(index, len(responses.calls))
         req = urlparse(responses.calls[index].request.url, allow_fragments=False)
-        expected = {**expected, 'action': 'query', 'format': 'json',
-                    'formatversion': '2', 'maxlag': '5'}
+        expected = {**expected,
+                    'action': 'query',
+                    'format': 'json',
+                    'formatversion': '2',
+                    'maxlag': '30'}
         expected = {k: [v] for k, v in expected.items()}
         actual = parse_qs(req.query)
         self.assertDictEqual(actual, expected)

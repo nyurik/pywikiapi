@@ -40,7 +40,7 @@ class Tests_CallPrep(unittest.TestCase):
             params=dict(
                 format='json',
                 formatversion=2,
-                maxlag=5,
+                maxlag=30,
                 action='query',
                 str='str',
                 strEmpty='',
@@ -68,7 +68,7 @@ class Tests_CallPrep(unittest.TestCase):
                 formatversion=2,
                 action='login',
                 test='abc',
-                maxlag=5,
+                maxlag=30,
             )))
 
     def test_call_prep_dt_err(self):
